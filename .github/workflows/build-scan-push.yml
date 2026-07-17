@@ -33,7 +33,7 @@ jobs:
         env:
           WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
           WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
-        run: ./wizcli scan container-image ${{ env.IMAGE_NAME }} --policy "phoebe vulnerabilities policy"
+        run: ./wizcli scan container-image ${{ env.IMAGE_NAME }} --policy "phoebe vulnerabilities policy" --tag wizignore=yes
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
