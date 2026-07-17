@@ -3,6 +3,7 @@ name: Build, Wiz Scan, and Push
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch: # This magical line adds the manual trigger button!
 
 # Required to push to GitHub Container Registry
 permissions:
