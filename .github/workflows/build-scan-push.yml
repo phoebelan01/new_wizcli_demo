@@ -1,0 +1,49 @@
+name: Build, Wiz Scan, and Push
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  IMAGE_NAME: my-app:latest
+  REGISTRY: ghcr.io
+
+jobs:
+  build-scan-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build the Docker image
+        run: docker build -t ${{ env.IMAGE_NAME }} .
+
+      - name: Download Wiz CLI
+        run: curl -o wizcli https://downloads.wiz.io/wizcli/latest/wizcli-linux-amd64 && chmod +x wizcli
+
+      - name: Authenticate Wiz CLI
+        env:
+          WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
+          WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
+        run: ./wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET"
+
+      - name: Run Wiz CLI Container Image Scan
+        # Policy names with spaces must be wrapped in quotes
+        run: ./wizcli scan container-image ${{ env.IMAGE_NAME }} --policy "phoebe vulnerabilities policy"
+
+      # This step only runs if the Wiz CLI scan passes (exit code 0)
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and Push Docker Image
+        run: |
+          IMAGE_ID=${{ env.REGISTRY }}/${{ github.repository_owner }}/my-app
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          
+          docker tag ${{ env.IMAGE_NAME }} $IMAGE_ID:latest
+          docker push $IMAGE_ID:latest
