@@ -1,22 +1,22 @@
 # wiz-scan ignore
-# 1. Using a severely outdated base image (Ubuntu 18.04)
-# This alone will trigger dozens of OS-level vulnerabilities.
-FROM ubuntu:18.04
+# 1. Using a severely outdated Alpine base image (released in 2019)
+# This will bring in vulnerable versions of busybox, apk-tools, and zlib.
+FROM alpine:latest
 
 # Adding your organizational label
 LABEL wizignore="yes"
 
-# 2. Installing specific, outdated packages with known CVEs
-# (curl and bash from the 18.04 era have multiple known exploits)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl=7.58.0-2ubuntu3 \
-    bash=4.4.18-2ubuntu1 \
-    && rm -rf /var/lib/apt/lists/*
+# 2. Installing packages from the old 3.10 repositories
+# These versions of curl and openssl have multiple known critical CVEs.
+RUN apk update && apk add --no-cache \
+    curl \
+    openssl \
+    bash
 
-# 3. Bonus: Hardcoding a fake secret!
-# If your policy includes Secrets scanning, Wiz CLI will flag this too.
+# 3. Hardcoding a fake secret!
+# This ensures your pipeline fails if you have a Secrets policy enabled.
 ENV AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE"
 
-RUN echo "Building the extremely vulnerable application..."
+RUN echo "Building the extremely vulnerable Alpine application..."
 
-CMD ["bash"]
+CMD ["sh"]
