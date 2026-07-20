@@ -1,0 +1,41 @@
+name: Wiz CLI Terraform Block Demo
+
+# Using workflow_dispatch allows you to trigger this demo manually with a button click in GitHub
+on: [workflow_dispatch] 
+
+jobs:
+  iac-security-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Download Wiz CLI
+        run: curl -Lo wizcli https://downloads.wiz.io/v1/wizcli/latest/wizcli-linux-amd64 && chmod +x wizcli
+
+      - name: Authenticate Wiz CLI
+        env:
+          WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
+          WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
+        run: ./wizcli auth --id $WIZ_CLIENT_ID --secret $WIZ_CLIENT_SECRET
+
+      # ---------------------------------------------------------
+      # THE QUALITY GATE: This is where the magic happens
+      # ---------------------------------------------------------
+      - name: Run Wiz CLI IaC Scan 
+        run: ./wizcli scan dir . --policy "Phoebe IaC Policy"
+
+      # ---------------------------------------------------------
+      # THE BLOCKED STEP: This will be skipped if Wiz CLI fails
+      # ---------------------------------------------------------
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
