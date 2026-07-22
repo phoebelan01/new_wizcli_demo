@@ -1,4 +1,4 @@
-\name: Wiz CLI Terraform Block Test
+name: Wiz CLI Terraform Block Test
 
 on:
   workflow_dispatch: # Allows you to trigger the test manually in GitHub
