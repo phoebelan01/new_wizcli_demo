@@ -1,11 +1,12 @@
-name: Wiz CLI Terraform Block Demo
+\name: Wiz CLI Terraform Block Test
 
-# Using workflow_dispatch allows you to trigger this demo manually with a button click in GitHub
-on: [workflow_dispatch] 
+on:
+  workflow_dispatch: # Allows you to trigger the test manually in GitHub
 
 jobs:
-  iac-security-gate:
+  build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -13,29 +14,36 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      # ---------------------------------------------------------
+      # STEP 1: Plan the changes
+      # ---------------------------------------------------------
       - name: Terraform Init
         run: terraform init
 
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
-      - name: Download Wiz CLI
-        run: curl -Lo wizcli https://downloads.wiz.io/v1/wizcli/latest/wizcli-linux-amd64 && chmod +x wizcli
-
-      - name: Authenticate Wiz CLI
+      # ---------------------------------------------------------
+      # STEP 2: Wiz CLI Scan (The Blocker)
+      # ---------------------------------------------------------
+      - name: Run Wiz CLI IaC Scan
         env:
+          # By setting these environment variables, Wiz CLI authenticates automatically
           WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
           WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
-        run: ./wizcli auth --id $WIZ_CLIENT_ID --secret $WIZ_CLIENT_SECRET
+        run: |
+          # 1. Download the latest Wiz CLI v1 binary
+          curl -o wizcli https://downloads.wiz.io/v1/wizcli/latest/wizcli-linux-amd64
+          chmod +x wizcli
+          
+          # 2. Run the scan with the custom policy using the v1 format
+          # IMPORTANT: If Wiz finds a violation, it returns a non-zero exit code.
+          # GitHub Actions sees this, FAILS this step, and CANCELS the rest of the job.
+          ./wizcli scan dir . --policy "Phoebe IaC policy"
 
       # ---------------------------------------------------------
-      # THE QUALITY GATE: This is where the magic happens
+      # STEP 3: CD / Deployment 
       # ---------------------------------------------------------
-      - name: Run Wiz CLI IaC Scan 
-        run: ./wizcli scan dir . --policy "Phoebe IaC Policy"
-
-      # ---------------------------------------------------------
-      # THE BLOCKED STEP: This will be skipped if Wiz CLI fails
-      # ---------------------------------------------------------
+      # This step will ONLY execute if Step 2 passes with no violations.
       - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply tfplan
