@@ -3,9 +3,8 @@ name: Build, Wiz Scan, and Push
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch: # This magical line adds the manual trigger button!
+  workflow_dispatch:
 
-# Required to push to GitHub Container Registry
 permissions:
   contents: read
   packages: write
@@ -26,14 +25,21 @@ jobs:
         run: docker build -t ${{ env.IMAGE_NAME }} .
 
       - name: Download Wiz CLI v1
-        run: curl -Lo wizcli https://downloads.wiz.io/v1/wizcli/latest/wizcli-linux-amd64 && chmod +x wizcli
+        run: |
+          curl -Lo wizcli https://downloads.wiz.io/v1/wizcli/latest/wizcli-linux-amd64
+          chmod +x wizcli
 
-      - name: Run Wiz CLI Container Image Scan
-        # Passing credentials directly as environment variables to the scan step
+      - name: Authenticate Wiz CLI
+        # Authenticate once so both scan and tag commands have valid session credentials
         env:
           WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
           WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
-        run: ./wizcli scan container-image ${{ env.IMAGE_NAME }} --policy "phoebe vulnerabilities policy" #--tag wizignore=yes
+        run: ./wizcli auth
+
+      - name: Run Wiz CLI Container Image Scan
+        # --ignore-comments enables parsing of inline comments like `# wiz-scan ignore`
+        # --policies matches the standard Wiz CLI flag name
+        run: ./wizcli scan container-image ${{ env.IMAGE_NAME }} --policies "phoebe vulnerabilities policy" --ignore-comments
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
@@ -49,3 +55,7 @@ jobs:
           
           docker tag ${{ env.IMAGE_NAME }} $IMAGE_ID:latest
           docker push $IMAGE_ID:latest
+
+      - name: Register Image Digest with Wiz
+        # Uploads the digest to Wiz for Cloud-to-Code mapping and Security Graph enrichment
+        run: ./wizcli tag ${{ env.IMAGE_NAME }}
