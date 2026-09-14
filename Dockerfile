@@ -1,22 +1,21 @@
 # wiz-scan ignore
-# 1. Using a severely outdated Alpine base image (released in 2019)
-# This will bring in vulnerable versions of busybox, apk-tools, and zlib.
-FROM alpine:latest
+FROM alpine:3.10
 
-# Adding your organizational label
 LABEL wizignore="yes"
 
-# 2. Installing packages from the old 3.10 repositories
-# These versions of curl and openssl have multiple known critical CVEs.
+# 1. Package Vulnerabilities (Managed OS packages via apk)
 RUN apk update && apk add --no-cache \
-    curl \
-    openssl \
+    curl=7.66.0-r0 \
+    openssl=1.1.1d-r0 \
     bash
 
-# 3. Hardcoding a fake secret!
-# This ensures your pipeline fails if you have a Secrets policy enabled.
-ENV AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE"
+# 2. File Path Vulnerabilities (Unmanaged binaries & Java archives placed directly on disk)
+# Downloads a vulnerable standalone binary (openssl) and an outdated Log4j JAR archive
+RUN mkdir -p /opt/vulnerable-files && \
+    wget https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-core/2.14.1/log4j-core-2.14.1.jar -O /opt/vulnerable-files/log4j-core-2.14.1.jar && \
+    wget https://archive.apache.org/dist/httpd/binaries/netware/httpd_2.2.17-netware.zip -O /opt/vulnerable-files/httpd.zip
 
-RUN echo "Building the extremely vulnerable Alpine application..."
+# 3. Hardcoded Secret (For pipeline policy checks)
+ENV AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE"
 
 CMD ["sh"]
