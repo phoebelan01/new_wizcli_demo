@@ -29,16 +29,11 @@ jobs:
           curl -Lo wizcli https://downloads.wiz.io/v1/wizcli/latest/wizcli-linux-amd64
           chmod +x wizcli
 
-      - name: Authenticate Wiz CLI
-        # Authenticate once so both scan and tag commands have valid session credentials
+      - name: Run Wiz CLI Container Image Scan
+        # Credentials passed directly to the scan execution
         env:
           WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
           WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
-        run: ./wizcli auth
-
-      - name: Run Wiz CLI Container Image Scan
-        # --ignore-comments enables parsing of inline comments like `# wiz-scan ignore`
-        # --policies matches the standard Wiz CLI flag name
         run: ./wizcli scan container-image ${{ env.IMAGE_NAME }} --policies "phoebe vulnerabilities policy" --ignore-comments
 
       - name: Log in to the Container registry
@@ -57,5 +52,8 @@ jobs:
           docker push $IMAGE_ID:latest
 
       - name: Register Image Digest with Wiz
-        # Uploads the digest to Wiz for Cloud-to-Code mapping and Security Graph enrichment
+        # Credentials passed directly to the tag execution
+        env:
+          WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
+          WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
         run: ./wizcli tag ${{ env.IMAGE_NAME }}
