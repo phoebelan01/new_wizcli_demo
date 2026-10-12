@@ -3,7 +3,7 @@ import sys
 
 def process_data():
     # Line 6: Source (Where data enters)
-    user_command = "echo 'hello'"
+    user_command = sys.argv[1]
 
     print("Processing input...")
     print("Checking permissions...")
